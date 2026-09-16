@@ -1,4 +1,4 @@
-# Nueve — Personality Constellation
+# Nueve - Personality Constellation
 
 Nueve is a complete greenfield prototype that turns an Open Enneagram of Personality Scales (OEPS) result into an explorable data-art landscape. The visualization is the primary result: nine large environmental regions hold one traceable light for every scored contribution, with pan, inertial zoom, touch gestures, zoom-dependent detail, and an accessible conventional summary.
 
