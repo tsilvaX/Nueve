@@ -13,6 +13,7 @@
   "dependencies": {
     "@react-three/drei": "latest",
     "@react-three/fiber": "latest",
+    "@vercel/analytics": "^2.0.1",
     "jspdf": "latest",
     "lucide-react": "latest",
     "react": "19.2.0",

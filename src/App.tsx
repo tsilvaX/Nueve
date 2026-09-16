@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { Landing } from './components/Landing';
 import { MethodologyModal } from './components/MethodologyModal';
 import { Questionnaire } from './assessment/Questionnaire';
@@ -70,6 +71,7 @@ export function App() {
           </section>
         </div>
       )}
+      <Analytics />
     </>
   );
 }
