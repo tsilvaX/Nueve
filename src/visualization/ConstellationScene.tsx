@@ -20,12 +20,13 @@ import {
 import { MapControls as MapControlsImpl } from 'three/addons/controls/MapControls.js';
 import { TYPE_REGIONS } from '../assessment/oeps';
 import { INSTINCT_REGIONS } from '../content/instincts';
-import type { EnneagramType, ResultProfile, VisualizationPoint } from '../types';
+import type { EnneagramType, Instinct, ResultProfile, VisualizationPoint } from '../types';
 import { createGlyphTexture, createLabelTexture, createRegionGlowTexture, createStreakTexture } from './textures';
 
 export interface ConstellationHandle {
   reset: () => void;
   focusType: (type: EnneagramType) => void;
+  navigateType: (type: EnneagramType) => void;
 }
 
 interface SceneProps {
@@ -37,7 +38,9 @@ interface SceneProps {
   onFocusedRegionChange: (type: EnneagramType | null) => void;
   onPointHover: (point: VisualizationPoint | null) => void;
   onPointSelect: (point: VisualizationPoint) => void;
+  onPointClear: () => void;
   onZoomChange: (zoom: number) => void;
+  onCameraTransitionChange: (moving: boolean) => void;
 }
 
 interface DustProps {
@@ -99,11 +102,12 @@ interface CometRuntime {
   endX: number;
   endY: number;
   peakOpacity: number;
+  length: number;
 }
 
 function AmbientComets({ reducedMotion }: { reducedMotion: boolean }) {
   const comets = useRef<Mesh[]>([]);
-  const states = useRef<CometRuntime[]>(Array.from({ length: 3 }, () => ({
+  const states = useRef<CometRuntime[]>(Array.from({ length: 4 }, () => ({
     active: false,
     startTime: 0,
     duration: 0,
@@ -112,6 +116,7 @@ function AmbientComets({ reducedMotion }: { reducedMotion: boolean }) {
     endX: 0,
     endY: 0,
     peakOpacity: 0,
+    length: 0,
   })));
   const nextEvent = useRef<number | null>(null);
   const nextSlot = useRef(0);
@@ -123,29 +128,35 @@ function AmbientComets({ reducedMotion }: { reducedMotion: boolean }) {
       comets.current.forEach((comet) => { comet.visible = false; });
       return;
     }
-    if (nextEvent.current === null) nextEvent.current = elapsed + 7 + Math.random() * 9;
+    if (nextEvent.current === null) nextEvent.current = elapsed + 4 + Math.random() * 6;
     if (elapsed >= nextEvent.current) {
       const slot = nextSlot.current;
       const comet = comets.current[slot];
       const state = states.current[slot];
-      const direction = Math.random() > 0.5 ? 1 : -1;
-      const verticalTravel = -4 + Math.random() * 8;
+      const directions = [0, Math.PI, Math.PI / 2, -Math.PI / 2, Math.PI / 4, -Math.PI / 4, Math.PI * 0.72, -Math.PI * 0.72, Math.PI * 0.12, -Math.PI * 0.12];
+      const angle = directions[Math.floor(Math.random() * directions.length)] + (Math.random() - 0.5) * 0.16;
+      const distance = 32 + Math.random() * 116;
+      const centerX = -38 + Math.random() * 76;
+      const centerY = -17 + Math.random() * 34;
+      const travelX = Math.cos(angle) * distance;
+      const travelY = Math.sin(angle) * distance;
       state.active = true;
       state.startTime = elapsed;
-      state.duration = 1.7 + Math.random() * 1.5;
-      state.startX = direction > 0 ? -74 : 74;
-      state.endX = direction > 0 ? 74 : -74;
-      state.startY = -12 + Math.random() * 24;
-      state.endY = state.startY + verticalTravel;
-      state.peakOpacity = 0.35 + Math.random() * 0.25;
+      state.duration = 1.25 + distance / 72 + Math.random() * 1.1;
+      state.startX = centerX - travelX / 2;
+      state.endX = centerX + travelX / 2;
+      state.startY = centerY - travelY / 2;
+      state.endY = centerY + travelY / 2;
+      state.peakOpacity = 0.22 + Math.random() * 0.34;
+      state.length = 7 + Math.random() * 16;
       if (comet) {
         const depth = Math.random();
         comet.position.z = -1.5 - depth * 3.5;
-        comet.rotation.z = Math.atan2(verticalTravel, state.endX - state.startX);
-        comet.scale.set(10 + Math.random() * 8, 0.38 + (1 - depth) * 0.24, 1);
+        comet.rotation.z = angle;
+        comet.scale.set(state.length, 0.25 + (1 - depth) * 0.34, 1);
       }
       nextSlot.current = (slot + 1) % states.current.length;
-      nextEvent.current = elapsed + 32 + Math.random() * 58;
+      nextEvent.current = elapsed + 17 + Math.random() * 24;
     }
 
     states.current.forEach((state, index) => {
@@ -192,6 +203,9 @@ function Region({
   focused,
   interactive,
   strength,
+  strongest,
+  nearTop,
+  reducedMotion,
   onHover,
   onSelect,
 }: {
@@ -201,6 +215,9 @@ function Region({
   focused: boolean;
   interactive: boolean;
   strength: number;
+  strongest: boolean;
+  nearTop: boolean;
+  reducedMotion: boolean;
   onHover: (type: EnneagramType | null) => void;
   onSelect: (type: EnneagramType) => void;
 }) {
@@ -211,7 +228,7 @@ function Region({
   const glowSprite = useRef<Sprite>(null);
   const { camera, gl } = useThree();
 
-  useFrame(() => {
+  useFrame(({ clock }) => {
     if (!sprite.current || !glowSprite.current) return;
     const zoom = (camera as OrthographicCameraType).zoom;
     const deepFocus = focused ? MathUtils.smoothstep(zoom, 22, 44) : 0;
@@ -225,9 +242,10 @@ function Region({
     sprite.current.material.opacity = MathUtils.lerp(sprite.current.material.opacity, targetOpacity, 0.1);
     sprite.current.scale.x = MathUtils.lerp(sprite.current.scale.x, 8.8 * targetScale, 0.09);
     sprite.current.scale.y = MathUtils.lerp(sprite.current.scale.y, 13.2 * targetScale, 0.09);
+    const strongestAccent = strongest ? 0.095 + (reducedMotion ? 0 : Math.sin(clock.elapsedTime * 0.48) * 0.018) : nearTop ? 0.035 : 0;
     const glowTarget = effectiveHover
       ? 0.76
-      : MathUtils.lerp(0.18 + strength * 0.56, 0.12 + strength * 0.2, deepFocus);
+      : MathUtils.lerp(0.18 + strength * 0.56 + strongestAccent, 0.12 + strength * 0.2 + strongestAccent * 0.4, deepFocus);
     glowSprite.current.material.opacity = MathUtils.lerp(glowSprite.current.material.opacity, glowTarget, 0.08);
   });
 
@@ -264,14 +282,20 @@ function Region({
   );
 }
 
-function InstinctFields({ focusedRegion }: { focusedRegion: EnneagramType | null }) {
+function InstinctFields({ profile, focusedRegion }: { profile: ResultProfile; focusedRegion: EnneagramType | null }) {
   const { camera } = useThree();
-  const zoneMaterials = useRef<Array<{ type: EnneagramType; material: SpriteMaterial }>>([]);
-  const ringMaterials = useRef<Array<{ type: EnneagramType; material: MeshBasicMaterial }>>([]);
-  const labelMaterials = useRef<Array<{ type: EnneagramType; material: SpriteMaterial }>>([]);
+  const zoneMaterials = useRef<Array<{ type: EnneagramType; instinct: Instinct; material: SpriteMaterial }>>([]);
+  const ringMaterials = useRef<Array<{ type: EnneagramType; instinct: Instinct; material: MeshBasicMaterial }>>([]);
+  const labelMaterials = useRef<Array<{ type: EnneagramType; instinct: Instinct; material: SpriteMaterial }>>([]);
+  const instinctScore = (instinct: Instinct) => profile.instinctProfile?.scores.find((score) => score.instinct === instinct)?.normalized ?? 0;
+  const strongestType = profile.dominantTypes[0];
+  const dominantInstinct = profile.instinctProfile?.dominantInstincts[0];
   const labels = useMemo(
-    () => Object.fromEntries(INSTINCT_REGIONS.map((instinct) => [instinct.id, createLabelTexture(instinct.shortLabel, 'Not yet assessed')])),
-    [],
+    () => Object.fromEntries(INSTINCT_REGIONS.map((instinct) => {
+      const score = profile.instinctProfile?.scores.find((item) => item.instinct === instinct.id);
+      return [instinct.id, createLabelTexture(instinct.shortLabel, score ? `${Math.round(score.normalized * 100)}% signal` : 'Not assessed')];
+    })),
+    [profile.instinctProfile],
   );
   const zoneGlows = useMemo(
     () => Object.fromEntries(TYPE_REGIONS.map((region) => [region.type, createRegionGlowTexture(region.hue)])),
@@ -281,16 +305,21 @@ function InstinctFields({ focusedRegion }: { focusedRegion: EnneagramType | null
   useFrame(() => {
     const zoom = (camera as OrthographicCameraType).zoom;
     const visibility = MathUtils.smoothstep(zoom, 16, 29);
-    zoneMaterials.current.forEach(({ type, material }) => {
-      const target = visibility * (focusedRegion === type ? 0.11 : 0.045);
+    zoneMaterials.current.forEach(({ type, instinct, material }) => {
+      const score = instinctScore(instinct);
+      const subtypeAccent = type === strongestType && instinct === dominantInstinct ? 1.32 : 1;
+      const target = visibility * (focusedRegion === type ? 0.07 + score * 0.14 : 0.025 + score * 0.045) * subtypeAccent;
       material.opacity = MathUtils.lerp(material.opacity, target, 0.1);
     });
-    ringMaterials.current.forEach(({ type, material }) => {
-      const target = visibility * (focusedRegion === type ? 0.055 : 0.022);
+    ringMaterials.current.forEach(({ type, instinct, material }) => {
+      const score = instinctScore(instinct);
+      const target = visibility * (focusedRegion === type ? 0.026 + score * 0.055 : 0.012 + score * 0.018);
       material.opacity = MathUtils.lerp(material.opacity, target, 0.1);
     });
-    labelMaterials.current.forEach(({ type, material }) => {
-      const target = visibility * (focusedRegion === type ? 0.62 : 0.2);
+    labelMaterials.current.forEach(({ type, instinct, material }) => {
+      const score = instinctScore(instinct);
+      const subtypeAccent = type === strongestType && instinct === dominantInstinct ? 0.14 : 0;
+      const target = visibility * (focusedRegion === type ? 0.38 + score * 0.38 + subtypeAccent : 0.1 + score * 0.14);
       material.opacity = MathUtils.lerp(material.opacity, target, 0.1);
     });
   });
@@ -315,7 +344,7 @@ function InstinctFields({ focusedRegion }: { focusedRegion: EnneagramType | null
                 <sprite scale={[5.1, 3.2, 1]} position={[0, 0, -0.28]}>
                   <spriteMaterial
                     ref={(material) => {
-                      if (material) zoneMaterials.current[currentZoneIndex] = { type: region.type, material };
+                      if (material) zoneMaterials.current[currentZoneIndex] = { type: region.type, instinct: instinct.id, material };
                     }}
                     map={zoneGlows[region.type]}
                     transparent
@@ -328,7 +357,7 @@ function InstinctFields({ focusedRegion }: { focusedRegion: EnneagramType | null
                   <ringGeometry args={[1.7, 1.73, 64]} />
                   <meshBasicMaterial
                     ref={(material) => {
-                      if (material) ringMaterials.current[currentRingIndex] = { type: region.type, material };
+                      if (material) ringMaterials.current[currentRingIndex] = { type: region.type, instinct: instinct.id, material };
                     }}
                     color={region.hue}
                     transparent
@@ -339,7 +368,7 @@ function InstinctFields({ focusedRegion }: { focusedRegion: EnneagramType | null
                 <sprite scale={[4.2, 1.05, 1]} position={[0, 1.85, 0.15]}>
                   <spriteMaterial
                     ref={(material) => {
-                      if (material) labelMaterials.current[currentLabelIndex] = { type: region.type, material };
+                      if (material) labelMaterials.current[currentLabelIndex] = { type: region.type, instinct: instinct.id, material };
                     }}
                     map={labels[instinct.id]}
                     transparent
@@ -358,11 +387,13 @@ function InstinctFields({ focusedRegion }: { focusedRegion: EnneagramType | null
 
 function DataLights({
   points: dataPoints,
+  strongestTypes,
   reducedMotion,
   onPointHover,
   onPointSelect,
 }: {
   points: VisualizationPoint[];
+  strongestTypes: EnneagramType[];
   reducedMotion: boolean;
   onPointHover: (point: VisualizationPoint | null) => void;
   onPointSelect: (point: VisualizationPoint) => void;
@@ -381,8 +412,9 @@ function DataLights({
       colors[index * 3] = Math.min(1, base.r * lift);
       colors[index * 3 + 1] = Math.min(1, base.g * lift);
       colors[index * 3 + 2] = Math.min(1, base.b * lift);
-      sizes[index] = 3.2 + point.normalized * 6.2;
-      alphas[index] = 0.36 + point.normalized * 0.64;
+      const strongestAccent = strongestTypes.includes(point.type) ? 1.08 : 1;
+      sizes[index] = (3.2 + point.normalized * 6.2) * strongestAccent;
+      alphas[index] = Math.min(1, (0.36 + point.normalized * 0.64) * strongestAccent);
     });
     const result = new BufferGeometry();
     result.setAttribute('position', new BufferAttribute(positions, 3));
@@ -390,7 +422,7 @@ function DataLights({
     result.setAttribute('aSize', new BufferAttribute(sizes, 1));
     result.setAttribute('aAlpha', new BufferAttribute(alphas, 1));
     return result;
-  }, [dataPoints]);
+  }, [dataPoints, strongestTypes]);
   const material = useMemo(() => new ShaderMaterial({
     transparent: true,
     depthWrite: false,
@@ -587,6 +619,7 @@ const CameraRig = forwardRef<ConstellationHandle, SceneProps>(function CameraRig
     onFocusedRegionChange,
     onPointHover,
     onPointSelect,
+    onCameraTransitionChange,
     onZoomChange,
   },
   ref,
@@ -599,17 +632,25 @@ const CameraRig = forwardRef<ConstellationHandle, SceneProps>(function CameraRig
   const regionInteractionEnabledRef = useRef(true);
   const lastFocusedRegion = useRef<EnneagramType | null>(null);
   const lastZoom = useRef(0);
-  const target = useRef<{ position: Vector3; zoom: number } | null>(null);
+  const target = useRef<{ position: Vector3; zoom: number; factor: number } | null>(null);
   const { gl } = useThree();
 
   useImperativeHandle(ref, () => ({
     reset: () => {
-      target.current = { position: new Vector3(0, 0, 50), zoom: 10 };
+      target.current = { position: new Vector3(0, 0, 50), zoom: 10, factor: 0.085 };
+      onCameraTransitionChange(true);
       controls.current?.target.set(0, 0, 0);
     },
     focusType: (type) => {
       const region = TYPE_REGIONS[type - 1];
-      target.current = { position: new Vector3(region.position[0], region.position[1], 50), zoom: 46 };
+      target.current = { position: new Vector3(region.position[0], region.position[1], 50), zoom: 46, factor: 0.1 };
+      onCameraTransitionChange(true);
+      controls.current?.target.set(region.position[0], region.position[1], 0);
+    },
+    navigateType: (type) => {
+      const region = TYPE_REGIONS[type - 1];
+      target.current = { position: new Vector3(region.position[0], region.position[1], 50), zoom: camera.current?.zoom ?? 46, factor: 0.145 };
+      onCameraTransitionChange(true);
       controls.current?.target.set(region.position[0], region.position[1], 0);
     },
   }));
@@ -620,12 +661,13 @@ const CameraRig = forwardRef<ConstellationHandle, SceneProps>(function CameraRig
     controls.current.target.x = MathUtils.clamp(controls.current.target.x, -54, 54);
     controls.current.target.y = MathUtils.clamp(controls.current.target.y, -12, 12);
     if (target.current) {
-      const factor = reducedMotion ? 1 : 0.085;
+      const factor = reducedMotion ? 1 : target.current.factor;
       currentCamera.position.lerp(target.current.position, factor);
       currentCamera.zoom = MathUtils.lerp(currentCamera.zoom, target.current.zoom, factor);
       currentCamera.updateProjectionMatrix();
       if (currentCamera.position.distanceTo(target.current.position) < 0.03 && Math.abs(currentCamera.zoom - target.current.zoom) < 0.03) {
         target.current = null;
+        onCameraTransitionChange(false);
       }
     }
 
@@ -685,7 +727,7 @@ const CameraRig = forwardRef<ConstellationHandle, SceneProps>(function CameraRig
       <StableNavigation
         ref={controls}
         reducedMotion={reducedMotion}
-        onStart={() => { target.current = null; }}
+        onStart={() => { target.current = null; onCameraTransitionChange(false); }}
         onRecover={() => {
           setHover(null);
           onPointHover(null);
@@ -703,7 +745,7 @@ const CameraRig = forwardRef<ConstellationHandle, SceneProps>(function CameraRig
           <meshBasicMaterial color="#d8cbaa" transparent opacity={0.055} depthWrite={false} />
         </mesh>
       ))}
-      <InstinctFields focusedRegion={focusedRegion} />
+      <InstinctFields profile={profile} focusedRegion={focusedRegion} />
       {TYPE_REGIONS.map((region) => (
         <Region
           key={region.type}
@@ -713,12 +755,16 @@ const CameraRig = forwardRef<ConstellationHandle, SceneProps>(function CameraRig
           focused={focusedRegion === region.type}
           interactive={regionInteractionEnabled}
           strength={profile.scores.find((score) => score.type === region.type)?.normalized ?? 0}
+          strongest={profile.dominantTypes.includes(region.type)}
+          nearTop={(profile.scores.find((score) => score.type === profile.dominantTypes[0])?.normalized ?? 0) - (profile.scores.find((score) => score.type === region.type)?.normalized ?? 0) <= 0.035}
+          reducedMotion={reducedMotion}
           onHover={setHover}
           onSelect={onRegionSelect}
         />
       ))}
       <DataLights
         points={profile.points}
+        strongestTypes={profile.dominantTypes}
         reducedMotion={reducedMotion}
         onPointHover={onPointHover}
         onPointSelect={onPointSelect}
@@ -736,6 +782,7 @@ export const ConstellationScene = forwardRef<ConstellationHandle, SceneProps>(fu
       onPointerMissed={() => {
         props.onRegionHover(null);
         props.onPointHover(null);
+        props.onPointClear();
       }}
     >
       <CameraRig {...props} ref={ref} />

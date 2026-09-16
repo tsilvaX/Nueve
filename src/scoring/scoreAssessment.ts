@@ -1,6 +1,8 @@
 import { OEPS, TYPE_REGIONS } from '../assessment/oeps';
+import { INSTINCT_ASSESSMENT } from '../assessment/instinctAssessment';
 import { getEvidenceBand, getEvidenceBandDefinition } from '../content/assessmentEvidence';
-import type { EnneagramType, Rating, Response, ResultProfile, TypeScore, VisualizationPoint } from '../types';
+import { scoreInstinctResponses } from './scoreInstincts';
+import type { EnneagramType, Instinct, InstinctResponse, Rating, Response, ResultProfile, TypeScore, VisualizationPoint } from '../types';
 
 const seeded = (seed: number) => {
   const value = Math.sin(seed * 9301 + 49297) * 233280;
@@ -113,5 +115,16 @@ export function createDemoProfile(kind: 'focused' | 'split' | 'broad' | 'dominan
     broad: 'Broad distribution',
     dominant: 'Dominant Type 8 · secondary signals',
   };
-  return { ...scoreResponses(responses), isDemo: true, demoLabel: labels[kind] };
+  const targetInstinct: Record<typeof kind, Instinct> = {
+    focused: 'self-preservation',
+    split: 'one-to-one',
+    broad: 'social',
+    dominant: 'one-to-one',
+  };
+  const instinctResponses: InstinctResponse[] = INSTINCT_ASSESSMENT.questions.map((question) => {
+    const desiredContribution = kind === 'broad' ? 3 + ((question.id % 3) - 1) : question.key.instinct === targetInstinct[kind] ? 5 : 3;
+    const rating = question.key.reverse ? 6 - desiredContribution : desiredContribution;
+    return { questionId: question.id, rating: rating as Rating };
+  });
+  return { ...scoreResponses(responses), instinctProfile: scoreInstinctResponses(instinctResponses), isDemo: true, demoLabel: labels[kind] };
 }

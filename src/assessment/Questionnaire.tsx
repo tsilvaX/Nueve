@@ -1,109 +1,163 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
 import { OEPS, SCALE_LABELS } from './oeps';
-import type { Rating, Response } from '../types';
+import { INSTINCT_ASSESSMENT } from './instinctAssessment';
+import type { InstinctResponse, Rating, Response } from '../types';
 import { Brand } from '../components/Brand';
+import { AmbientField } from '../components/AmbientField';
 
 interface QuestionnaireProps {
   onCancel: () => void;
-  onComplete: (responses: Response[]) => void;
+  onComplete: (responses: Response[], instinctResponses: InstinctResponse[]) => void;
 }
 
-export function Questionnaire({ onCancel, onComplete }: QuestionnaireProps) {
-  const [index, setIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<number, Rating>>({});
-  const [keyboardTransition, setKeyboardTransition] = useState(false);
-  const question = OEPS.questions[index];
-  const rating = answers[question.id];
-  const answeredCount = Object.keys(answers).length;
-  const progress = ((index + 1) / OEPS.questions.length) * 100;
-  const allAnswered = answeredCount === OEPS.questions.length;
+type Phase = 'type' | 'bridge' | 'instinct';
 
-  const responses = useMemo(
-    () => OEPS.questions.filter((item) => answers[item.id]).map((item) => ({ questionId: item.id, rating: answers[item.id] })),
-    [answers],
+export function Questionnaire({ onCancel, onComplete }: QuestionnaireProps) {
+  const [phase, setPhase] = useState<Phase>('type');
+  const [typeIndex, setTypeIndex] = useState(0);
+  const [instinctIndex, setInstinctIndex] = useState(0);
+  const [typeAnswers, setTypeAnswers] = useState<Record<number, Rating>>({});
+  const [instinctAnswers, setInstinctAnswers] = useState<Record<number, Rating>>({});
+  const [keyboardTransition, setKeyboardTransition] = useState(false);
+
+  const isType = phase === 'type';
+  const typeQuestion = OEPS.questions[typeIndex];
+  const instinctQuestion = INSTINCT_ASSESSMENT.questions[instinctIndex];
+  const questionId = isType ? typeQuestion.id : instinctQuestion.id;
+  const rating = isType ? typeAnswers[questionId] : instinctAnswers[questionId];
+  const index = isType ? typeIndex : instinctIndex;
+  const length = isType ? OEPS.questions.length : INSTINCT_ASSESSMENT.questions.length;
+  const answeredCount = isType ? Object.keys(typeAnswers).length : Object.keys(instinctAnswers).length;
+  const progress = ((index + 1) / length) * 100;
+
+  const typeResponses = useMemo(
+    () => OEPS.questions.filter((item) => typeAnswers[item.id]).map((item) => ({ questionId: item.id, rating: typeAnswers[item.id] })),
+    [typeAnswers],
+  );
+  const instinctResponses = useMemo(
+    () => INSTINCT_ASSESSMENT.questions.filter((item) => instinctAnswers[item.id]).map((item) => ({ questionId: item.id, rating: instinctAnswers[item.id] })),
+    [instinctAnswers],
   );
 
-  const navigate = (direction: -1 | 1, viaKeyboard = false) => {
+  useEffect(() => {
+    if (phase !== 'bridge') return;
+    const timer = window.setTimeout(() => setPhase('instinct'), 1150);
+    return () => window.clearTimeout(timer);
+  }, [phase]);
+
+  const goBack = (viaKeyboard = false) => {
     setKeyboardTransition(viaKeyboard);
-    setIndex((current) => Math.min(OEPS.questions.length - 1, Math.max(0, current + direction)));
+    if (phase === 'instinct' && instinctIndex === 0) {
+      setPhase('type');
+      setTypeIndex(OEPS.questions.length - 1);
+      return;
+    }
+    if (phase === 'type') setTypeIndex((current) => Math.max(0, current - 1));
+    if (phase === 'instinct') setInstinctIndex((current) => Math.max(0, current - 1));
+  };
+
+  const goForward = (viaKeyboard = false) => {
+    if (!rating) return;
+    setKeyboardTransition(viaKeyboard);
+    if (phase === 'type') {
+      if (typeIndex === OEPS.questions.length - 1) setPhase('bridge');
+      else setTypeIndex((current) => current + 1);
+      return;
+    }
+    if (phase === 'instinct' && instinctIndex < INSTINCT_ASSESSMENT.questions.length - 1) {
+      setInstinctIndex((current) => current + 1);
+    }
   };
 
   useEffect(() => {
+    if (phase === 'bridge') return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key >= '1' && event.key <= '5') {
-        setAnswers((current) => ({ ...current, [question.id]: Number(event.key) as Rating }));
+        const value = Number(event.key) as Rating;
+        if (isType) setTypeAnswers((current) => ({ ...current, [questionId]: value }));
+        else setInstinctAnswers((current) => ({ ...current, [questionId]: value }));
       } else if (event.key === 'ArrowLeft') {
         event.preventDefault();
-        navigate(-1, true);
-      } else if ((event.key === 'ArrowRight' || event.key === 'Enter') && rating && index < OEPS.questions.length - 1) {
+        goBack(true);
+      } else if ((event.key === 'ArrowRight' || event.key === 'Enter') && rating) {
         event.preventDefault();
-        navigate(1, true);
+        if (phase === 'instinct' && instinctIndex === INSTINCT_ASSESSMENT.questions.length - 1) {
+          if (instinctResponses.length === INSTINCT_ASSESSMENT.questions.length) onComplete(typeResponses, instinctResponses);
+        } else {
+          goForward(true);
+        }
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [index, question.id, rating]);
+  });
+
+  if (phase === 'bridge') {
+    return (
+      <main className="questionnaire questionnaire--bridge">
+        <AmbientField />
+        <div className="questionnaire__atmosphere" aria-hidden="true" />
+        <section className="questionnaire__bridge" aria-live="polite">
+          <p className="eyebrow">Part 1 complete</p>
+          <i aria-hidden="true" />
+          <h1>Now, notice what draws your attention.</h1>
+          <p>Part 2 explores instinctive priorities. Your constellation remains just beyond view.</p>
+        </section>
+      </main>
+    );
+  }
 
   const select = (value: Rating) => {
-    setAnswers((current) => ({ ...current, [question.id]: value }));
+    if (isType) setTypeAnswers((current) => ({ ...current, [questionId]: value }));
+    else setInstinctAnswers((current) => ({ ...current, [questionId]: value }));
   };
+  const isLast = index === length - 1;
+  const allInstinctAnswered = instinctResponses.length === INSTINCT_ASSESSMENT.questions.length;
 
   return (
     <main className="questionnaire">
+      <AmbientField />
       <div className="questionnaire__atmosphere" aria-hidden="true" />
       <header className="questionnaire__header">
         <button className="brand-button" onClick={onCancel} aria-label="Return home"><Brand compact /></button>
-        <div className="questionnaire__progress-copy">
-          <span>{String(index + 1).padStart(2, '0')}</span>
-          <i aria-hidden="true" />
-          <span>{OEPS.questions.length}</span>
-        </div>
+        <div className="questionnaire__part"><span>Part {isType ? '1' : '2'} of 2</span><i aria-hidden="true" /><strong>{isType ? 'Type' : 'Instinct'}</strong></div>
         <button className="text-button" onClick={onCancel}>Exit</button>
       </header>
       <div className="progress-line" aria-hidden="true"><i style={{ transform: `scaleX(${progress / 100})` }} /></div>
 
       <section className="questionnaire__stage" aria-live="polite">
-        <div key={question.id} className={`question ${keyboardTransition ? 'question--instant' : ''}`}>
-          <p className="eyebrow">{question.format === 'statement' ? 'How true is this of you?' : 'Where do you fall between these?'}</p>
-          {question.format === 'statement' ? (
-            <h1>“{question.prompt}”</h1>
+        <div key={`${phase}-${questionId}`} className={`question ${keyboardTransition ? 'question--instant' : ''}`}>
+          <p className="eyebrow">{isType && typeQuestion.format === 'bipolar' ? 'Where do you fall between these?' : 'How true is this of you?'}</p>
+          {isType && typeQuestion.format === 'bipolar' ? (
+            <h1 className="question__pair"><span>{typeQuestion.leftLabel}</span><i /><span>{typeQuestion.rightLabel}</span></h1>
           ) : (
-            <h1 className="question__pair"><span>{question.leftLabel}</span><i /><span>{question.rightLabel}</span></h1>
+            <h1>“{isType ? typeQuestion.prompt : instinctQuestion.prompt}”</h1>
           )}
-          <fieldset className={`rating ${question.format === 'bipolar' ? 'rating--bipolar' : ''}`}>
+          <fieldset className={`rating ${isType && typeQuestion.format === 'bipolar' ? 'rating--bipolar' : ''}`}>
             <legend className="sr-only">Choose a rating from 1 to 5</legend>
-            {question.format === 'statement' && <div className="rating__poles"><span>Disagree</span><span>Agree</span></div>}
+            {(!isType || typeQuestion.format === 'statement') && <div className="rating__poles"><span>Disagree</span><span>Agree</span></div>}
             <div className="rating__options">
               {([1, 2, 3, 4, 5] as Rating[]).map((value) => (
-                <button
-                  type="button"
-                  key={value}
-                  className={rating === value ? 'is-selected' : ''}
-                  onClick={() => select(value)}
-                  aria-label={`${value}: ${question.format === 'statement' ? SCALE_LABELS[value - 1] : `${question.leftLabel} to ${question.rightLabel}`}`}
-                  aria-pressed={rating === value}
-                >
+                <button type="button" key={value} className={rating === value ? 'is-selected' : ''} onClick={() => select(value)} aria-label={`${value}: ${isType && typeQuestion.format === 'bipolar' ? `${typeQuestion.leftLabel} to ${typeQuestion.rightLabel}` : SCALE_LABELS[value - 1]}`} aria-pressed={rating === value}>
                   <span>{value}</span><i />
                 </button>
               ))}
             </div>
-            {question.format === 'bipolar' && <div className="rating__poles"><span>{question.leftLabel}</span><span>{question.rightLabel}</span></div>}
+            {isType && typeQuestion.format === 'bipolar' && <div className="rating__poles"><span>{typeQuestion.leftLabel}</span><span>{typeQuestion.rightLabel}</span></div>}
           </fieldset>
+
+          <nav className="questionnaire__navigation" aria-label="Question navigation">
+            <button className="nav-button" disabled={phase === 'type' && index === 0} onClick={() => goBack()}><ArrowLeft size={17} /> Previous</button>
+            {!isLast || isType ? (
+              <button className="nav-button nav-button--next" disabled={!rating} onClick={() => goForward()}>{isLast ? 'Continue' : 'Next'} <ArrowRight size={17} /></button>
+            ) : (
+              <button className="primary-button primary-button--compact" disabled={!allInstinctAnswered} onClick={() => onComplete(typeResponses, instinctResponses)}>Reveal your constellation <Check size={17} /></button>
+            )}
+          </nav>
+          <p className="questionnaire__answered">{String(index + 1).padStart(2, '0')} / {length} · {answeredCount} answered</p>
         </div>
       </section>
-
-      <footer className="questionnaire__footer">
-        <button className="nav-button" disabled={index === 0} onClick={() => navigate(-1)}><ArrowLeft size={17} /> Previous</button>
-        <span className="questionnaire__answered">{answeredCount} answered</span>
-        {index < OEPS.questions.length - 1 ? (
-          <button className="nav-button nav-button--next" disabled={!rating} onClick={() => navigate(1)}>Next <ArrowRight size={17} /></button>
-        ) : (
-          <button className="primary-button primary-button--compact" disabled={!allAnswered} onClick={() => onComplete(responses)}>
-            Enter your constellation <Check size={17} />
-          </button>
-        )}
-      </footer>
       <p className="keyboard-hint">Keys 1–5 to answer · arrows to navigate</p>
     </main>
   );

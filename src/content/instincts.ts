@@ -7,10 +7,7 @@ export interface InstinctRegionDefinition {
   offset: [number, number, number];
 }
 
-/**
- * Spatial placeholders for a future independent instinct assessment. These
- * definitions contain no scores and receive no OEPS visualization points.
- */
+/** Spatial definitions only; scores come from the independent Part 2 assessment. */
 export const INSTINCT_REGIONS: InstinctRegionDefinition[] = [
   {
     id: 'self-preservation',

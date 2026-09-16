@@ -1,0 +1,37 @@
+import type { InstinctQuestion } from '../types';
+
+export const INSTINCT_ASSESSMENT = {
+  id: 'nueve-instinct-reflection',
+  title: 'Nueve Instinct Reflection',
+  version: '1.0.0',
+  questions: [
+    { id: 1, prompt: 'Before I can relax, I usually check that practical details are handled.', key: { instinct: 'self-preservation' } },
+    { id: 2, prompt: 'A conversation feels worthwhile when there is real energy between us.', key: { instinct: 'one-to-one' } },
+    { id: 3, prompt: 'I quickly notice who is included and who is standing at the edge.', key: { instinct: 'social' } },
+    { id: 4, prompt: 'I rarely think ahead about what I might need later.', key: { instinct: 'self-preservation', reverse: true } },
+    { id: 5, prompt: 'I feel responsible for doing my part when a group depends on me.', key: { instinct: 'social' } },
+    { id: 6, prompt: 'I prefer connections that stay pleasant rather than becoming intense.', key: { instinct: 'one-to-one', reverse: true } },
+    { id: 7, prompt: 'My place or role in a group matters very little to me.', key: { instinct: 'social', reverse: true } },
+    { id: 8, prompt: 'A stable home base helps me take on the rest of life.', key: { instinct: 'self-preservation' } },
+    { id: 9, prompt: 'I can become deeply absorbed in one person, project, or possibility.', key: { instinct: 'one-to-one' } },
+    { id: 10, prompt: 'I naturally track my time, energy, and supplies.', key: { instinct: 'self-preservation' } },
+    { id: 11, prompt: 'I often adjust what I contribute after reading the needs of the room.', key: { instinct: 'social' } },
+    { id: 12, prompt: 'Chemistry can draw my attention before I have decided what I think.', key: { instinct: 'one-to-one' } },
+    { id: 13, prompt: 'Physical discomfort is easy for me to ignore for long stretches.', key: { instinct: 'self-preservation', reverse: true } },
+    { id: 14, prompt: 'I usually keep some distance even when a connection feels compelling.', key: { instinct: 'one-to-one', reverse: true } },
+    { id: 15, prompt: 'I care about being useful to a community, not only to individuals.', key: { instinct: 'social' } },
+    { id: 16, prompt: 'Having a practical fallback plan gives me room to breathe.', key: { instinct: 'self-preservation' } },
+    { id: 17, prompt: 'New experiences interest me most when they feel vivid and charged.', key: { instinct: 'one-to-one' } },
+    { id: 18, prompt: 'I seldom wonder how my actions affect the wider group.', key: { instinct: 'social', reverse: true } },
+    { id: 19, prompt: 'In one-to-one settings, I look for honesty that cuts through small talk.', key: { instinct: 'one-to-one' } },
+    { id: 20, prompt: 'I tend to use resources freely and sort out the consequences later.', key: { instinct: 'self-preservation', reverse: true } },
+    { id: 21, prompt: 'I pay attention to the unwritten expectations in a group.', key: { instinct: 'social' } },
+    { id: 22, prompt: 'Strong attraction or excitement rarely changes my priorities.', key: { instinct: 'one-to-one', reverse: true } },
+    { id: 23, prompt: 'I protect recovery time before I become depleted.', key: { instinct: 'self-preservation' } },
+    { id: 24, prompt: 'Recognition for my contribution is mostly irrelevant to me.', key: { instinct: 'social', reverse: true } },
+    { id: 25, prompt: 'I feel steadier when finances and essential obligations are predictable.', key: { instinct: 'self-preservation' } },
+    { id: 26, prompt: 'I am energized by focused encounters that make ordinary life feel more alive.', key: { instinct: 'one-to-one' } },
+    { id: 27, prompt: 'Belonging grows for me through participation and shared responsibility.', key: { instinct: 'social' } },
+  ] satisfies InstinctQuestion[],
+} as const;
+

@@ -4,8 +4,9 @@ import { Landing } from './components/Landing';
 import { MethodologyModal } from './components/MethodologyModal';
 import { Questionnaire } from './assessment/Questionnaire';
 import { createDemoProfile, scoreResponses } from './scoring/scoreAssessment';
+import { scoreInstinctResponses } from './scoring/scoreInstincts';
 import { loadResult, saveResult } from './results/persistence';
-import type { Response, ResultProfile } from './types';
+import type { InstinctResponse, Response, ResultProfile } from './types';
 
 const Universe = lazy(() => import('./visualization/Universe').then((module) => ({ default: module.Universe })));
 
@@ -19,8 +20,8 @@ export function App() {
   const [methodOpen, setMethodOpen] = useState(false);
   const [demoOpen, setDemoOpen] = useState(false);
 
-  const complete = (responses: Response[]) => {
-    const result = scoreResponses(responses);
+  const complete = (responses: Response[], instinctResponses: InstinctResponse[]) => {
+    const result = { ...scoreResponses(responses), instinctProfile: scoreInstinctResponses(instinctResponses) };
     saveResult(result);
     setSavedResult(result);
     setProfile(result);

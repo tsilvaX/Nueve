@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import { OEPS } from '../assessment/oeps';
+import { INSTINCT_ASSESSMENT } from '../assessment/instinctAssessment';
 
 export function MethodologyModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   if (!open) return null;
@@ -12,16 +13,23 @@ export function MethodologyModal({ open, onClose }: { open: boolean; onClose: ()
         <p>
           Nueve uses the Open-Source Psychometrics Project’s OEPS v2. It presents the published items without revealing their scoring direction, then applies the documented additive and reverse-key formula.
         </p>
+        <p>
+          Part 2 is an original Nueve reflection based on the three-instinct subtype framework. It is an experimental educational tool, not a clinically validated psychological assessment, and its wording is not drawn from a commercial test.
+        </p>
         <dl>
           <div><dt>Instrument</dt><dd>{OEPS.title}, {OEPS.version}</dd></div>
-          <div><dt>Items</dt><dd>54 items in the downloadable official form</dd></div>
+          <div><dt>Type items</dt><dd>54 items in the downloadable official form</dd></div>
+          <div><dt>Instincts</dt><dd>{INSTINCT_ASSESSMENT.questions.length} original items; 9 each for self-preservation, social, and one-to-one</dd></div>
           <div><dt>License</dt><dd>Creative Commons Attribution–NonCommercial–ShareAlike 4.0</dd></div>
           <div><dt>Privacy</dt><dd>Responses remain in this browser; there is no account or server.</dd></div>
         </dl>
         <p className="method-modal__note">
           Source note: the January 2026 documentation page says 57 items, but the linked v2 ODT contains Q1–Q54 and scores Q1–Q54. This implementation follows that primary scoring document.
         </p>
-        <a className="primary-button primary-button--compact" href={OEPS.sourceUrl} target="_blank" rel="noreferrer">Read the official documentation ↗</a>
+        <div className="method-modal__links">
+          <a className="primary-button primary-button--compact" href={OEPS.sourceUrl} target="_blank" rel="noreferrer">OEPS documentation ↗</a>
+          <a className="text-button" href="https://www.beyondyourtype.co/blog/enneagram-subtypes-explained" target="_blank" rel="noreferrer">Subtype framework reference ↗</a>
+        </div>
       </section>
     </div>
   );

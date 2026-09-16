@@ -63,16 +63,53 @@ export interface InstinctScore {
   normalized: number;
 }
 
-/**
- * Reserved for a future, independent instinct questionnaire. OEPS scoring never
- * populates this object, so type evidence cannot be mistaken for instinct data.
- */
-export interface InstinctAssessmentProfile {
+export interface InstinctQuestion {
+  id: number;
+  prompt: string;
+  key: {
+    instinct: Instinct;
+    reverse?: boolean;
+  };
+}
+
+export interface InstinctResponse {
+  questionId: number;
+  rating: Rating;
+}
+
+/** Independent from OEPS: this profile is produced only by Part 2. */
+export interface InstinctProfile {
   assessmentId: string;
   assessmentVersion: string;
-  responses: Response[];
+  responses: InstinctResponse[];
   scores: InstinctScore[];
   dominantInstincts: Instinct[];
+}
+
+export interface SubtypeContent {
+  code: string;
+  type: EnneagramType;
+  instinct: Instinct;
+  displayName: string;
+  summary: string;
+  themes: string[];
+  tendencies: string;
+  strengths: string;
+  tensions: string;
+  relationshipToType: string;
+}
+
+export interface TypeContent {
+  type: EnneagramType;
+  overview: string;
+  motivation: string;
+  concerns: string;
+  strengths: string[];
+  patterns: string[];
+  blindSpots: string;
+  stress: string;
+  growth: string;
+  relationships: string;
 }
 
 export interface TypeRegion {
@@ -95,7 +132,7 @@ export interface ResultProfile {
   scores: TypeScore[];
   dominantTypes: EnneagramType[];
   points: VisualizationPoint[];
-  instinctProfile?: InstinctAssessmentProfile;
+  instinctProfile?: InstinctProfile;
   isDemo?: boolean;
   demoLabel?: string;
 }

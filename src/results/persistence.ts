@@ -18,7 +18,7 @@ export function loadResult(): ResultProfile | null {
     const profile = JSON.parse(stored) as ResultProfile;
     if (!profile.assessmentId || !Array.isArray(profile.scores)) return null;
     if (profile.points?.some((point) => !point.evidenceBand) && Array.isArray(profile.responses)) {
-      return scoreResponses(profile.responses, { id: profile.id, createdAt: profile.createdAt });
+      return { ...scoreResponses(profile.responses, { id: profile.id, createdAt: profile.createdAt }), instinctProfile: profile.instinctProfile };
     }
     return profile;
   } catch {
