@@ -19,13 +19,13 @@ npm run preview
 
 ## Architecture
 
-- `src/assessment/` — assessment content and questionnaire presentation
-- `src/scoring/` — pure scoring, normalization, visualization-model generation, and tests
-- `src/visualization/` — React Three Fiber world, camera controls, GPU point fields, and zoom-level interaction
-- `src/results/` — accessible score summary and local persistence
-- `src/export/` — purpose-built 1800×1800 image export and PDF report
-- `src/components/` — shared interface components and source/methodology disclosure
-- `src/types.ts` — replaceable contracts for OEPS scores/evidence and a separate optional future `InstinctAssessmentProfile`
+- `src/assessment/` - assessment content and questionnaire presentation
+- `src/scoring/` - pure scoring, normalization, visualization-model generation, and tests
+- `src/visualization/` - React Three Fiber world, camera controls, GPU point fields, and zoom-level interaction
+- `src/results/` - accessible score summary and local persistence
+- `src/export/` - purpose-built 1800×1800 image export and PDF report
+- `src/components/` - shared interface components and source/methodology disclosure
+- `src/types.ts` - replaceable contracts for OEPS scores/evidence and a separate optional future `InstinctAssessmentProfile`
 
 The visualization consumes a normalized `ResultProfile`; it does not read questionnaire state. That boundary allows a later licensed instrument to replace or extend OEPS without rewriting the world.
 
@@ -67,11 +67,11 @@ OEPS is an educational, self-report matching instrument, not a clinical measure.
 
 ## Dependencies
 
-- React + TypeScript + Vite — application foundation and fast static build
-- Three.js + React Three Fiber + Drei — GPU-rendered spatial world, point field, orthographic camera, and gesture controls
-- jsPDF — downloadable report; loaded only when PDF export is requested
-- Lucide React — consistent accessible control icons
-- Vitest — scoring and data-integrity tests
+- React + TypeScript + Vite -> application foundation and fast static build
+- Three.js + React Three Fiber + Drei -> GPU-rendered spatial world, point field, orthographic camera, and gesture controls
+- jsPDF -> downloadable report; loaded only when PDF export is requested
+- Lucide React -> consistent accessible control icons
+- Vitest -> scoring and data-integrity tests
 
 UI transitions use CSS because they do not need a motion runtime. Camera damping, zoom-responsive light sizing, parallax dust, and a three-object comet pool stay inside the render loop. The first distant streak appears after roughly 7–16 seconds; later events use randomized 32–90 second gaps. Reduced-motion preferences remove drift, streaks, and spatial entrances while preserving short fades that explain state changes.
 
